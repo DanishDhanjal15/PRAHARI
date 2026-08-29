@@ -173,7 +173,7 @@ The oracle is built first, because nothing downstream works without it.
 
 ## Team
 
-**[TEAM NAME]** — [Member 1] · [Member 2] · [Member 3]
+CYBERKNIIGHTS — Danish Dhanjal · Hardik Trikha 
 
 ## License
 
