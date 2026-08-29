@@ -140,7 +140,6 @@ autonomous run · <90 s cold start to the first captured PoV.
 ```
 .
 ├── README.md
-├── build_deck.py                    # generator for the submission deck
 ├── PRAHARI_AI_Kavach.pptx           # 5-slide submission deck
 ├── PRAHARI_AI_Kavach.pdf            # same, as PDF
 ├── requirements.txt                 # planned dependencies
@@ -173,7 +172,7 @@ The oracle is built first, because nothing downstream works without it.
 
 ## Team
 
-CYBERKNIIGHTS — Danish Dhanjal · Hardik Trikha 
+CYBERKNIIGHTS — Danish Dhanjal · Hardik Trikha
 
 ## License
 

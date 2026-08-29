@@ -30,6 +30,9 @@ corpus/
 proof-bundles/
 *.sarif
 
+# Deck generator (kept local; the built deck is committed instead)
+build_deck.py
+
 # OS / editor
 .DS_Store
 Thumbs.db

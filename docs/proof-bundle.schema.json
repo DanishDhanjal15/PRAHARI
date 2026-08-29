@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/PLACEHOLDER/prahari/docs/proof-bundle.schema.json",
+  "$id": "https://github.com/DanishDhanjal15/PRAHARI/docs/proof-bundle.schema.json",
   "title": "PRAHARI Proof Bundle",
   "description": "Evidence emitted when an autonomously generated patch is accepted. Designed to be re-verified by a third party who does not trust the system that produced it.",
   "type": "object",
