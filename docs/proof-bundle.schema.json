@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PLACEHOLDER/prahari/docs/proof-bundle.schema.json",
+  "title": "PRAHARI Proof Bundle",
+  "description": "Evidence emitted when an autonomously generated patch is accepted. Designed to be re-verified by a third party who does not trust the system that produced it.",
+  "type": "object",
+  "required": ["bundle_version", "created_at", "target", "finding", "patch", "gates", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "bundle_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "target": {
+      "type": "object",
+      "required": ["repo_commit", "base_url", "runtime"],
+      "additionalProperties": false,
+      "properties": {
+        "repo_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Commit the patch was generated against."
+        },
+        "base_url": { "type": "string" },
+        "framework": {
+          "type": "string",
+          "enum": ["flask", "fastapi", "django", "express", "other"]
+        },
+        "runtime": {
+          "type": "object",
+          "required": ["python_version"],
+          "properties": {
+            "python_version": { "type": "string" },
+            "os": { "type": "string" },
+            "dependency_lock_hash": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "finding": {
+      "type": "object",
+      "required": ["finding_id", "cwe", "severity", "route", "taint_path", "pov"],
+      "additionalProperties": false,
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "description": "Stable hash of the taint-path signature; identical bugs across runs share an id."
+        },
+        "cwe": {
+          "type": "string",
+          "pattern": "^CWE-[0-9]+$"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "severity_rationale": {
+          "type": "object",
+          "properties": {
+            "reachable_unauthenticated": { "type": "boolean" },
+            "requires_role": { "type": ["string", "null"] },
+            "sink_category": { "type": "string" }
+          }
+        },
+        "route": {
+          "type": "object",
+          "required": ["method", "path_template"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+            },
+            "path_template": { "type": "string" },
+            "handler": {
+              "type": "string",
+              "description": "module:function of the view that handles this route."
+            }
+          }
+        },
+        "taint_path": {
+          "type": "object",
+          "required": ["source", "hops", "sink"],
+          "description": "Provenance from attacker-controlled input to the dangerous call.",
+          "properties": {
+            "source": {
+              "type": "object",
+              "required": ["kind", "location"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "description": "e.g. request.args['q']"
+                },
+                "location": { "$ref": "#/$defs/code_location" }
+              }
+            },
+            "hops": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["operation", "location"],
+                "properties": {
+                  "operation": { "type": "string" },
+                  "location": { "$ref": "#/$defs/code_location" }
+                }
+              }
+            },
+            "sink": {
+              "type": "object",
+              "required": ["callable", "argument_index", "location"],
+              "properties": {
+                "callable": { "type": "string" },
+                "argument_index": { "type": "integer", "minimum": 0 },
+                "rendered_argument": { "type": "string" },
+                "location": { "$ref": "#/$defs/code_location" }
+              }
+            }
+          }
+        },
+        "pov": {
+          "type": "object",
+          "required": ["request", "response_before"],
+          "description": "Replayable proof of vulnerability against the unpatched target.",
+          "properties": {
+            "request": { "$ref": "#/$defs/http_request" },
+            "response_before": { "$ref": "#/$defs/http_response" },
+            "identity": {
+              "type": ["string", "null"],
+              "description": "Auth context used, or null for unauthenticated."
+            }
+          }
+        }
+      }
+    },
+
+    "patch": {
+      "type": "object",
+      "required": ["diff", "files_changed", "generated_by", "candidate_rank"],
+      "additionalProperties": false,
+      "properties": {
+        "diff": {
+          "type": "string",
+          "description": "Unified diff. Constrained to files on the taint path; tests and PySan config are immutable to the patcher."
+        },
+        "files_changed": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "generated_by": {
+          "type": "object",
+          "required": ["tier", "model"],
+          "properties": {
+            "tier": { "type": "string", "enum": ["local", "cloud"] },
+            "model": { "type": "string" },
+            "escalated": {
+              "type": "boolean",
+              "description": "True if local candidates failed all gates and cloud escalation was used."
+            }
+          }
+        },
+        "candidate_rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Which of the N generated candidates was accepted."
+        },
+        "candidates_rejected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retry_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Feedback-loop passes consumed before acceptance."
+        }
+      }
+    },
+
+    "gates": {
+      "type": "object",
+      "required": ["g1_pov_blocked", "g2_regression", "g3_differential", "g4_no_new_taint"],
+      "additionalProperties": false,
+      "description": "All four must report passed=true for a bundle to be emitted.",
+      "properties": {
+        "g1_pov_blocked": {
+          "allOf": [{ "$ref": "#/$defs/gate_result" }],
+          "properties": {
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "response_after": { "$ref": "#/$defs/http_response" },
+                "sink_reached": { "type": "boolean", "const": false }
+              }
+            }
+          }
+        },
+        "g2_regression": {
+          "allOf": [{ "$ref": "#/$defs/gate_result" }],
+          "properties": {
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "tests_passed": { "type": "integer" },
+                "tests_total": { "type": "integer" },
+                "command": { "type": "string" }
+              }
+            }
+          }
+        },
+        "g3_differential": {
+          "allOf": [{ "$ref": "#/$defs/gate_result" }],
+          "properties": {
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "requests_replayed": { "type": "integer", "minimum": 1 },
+                "divergent_responses": { "type": "integer", "const": 0 },
+                "corpus_hash": { "type": "string" }
+              }
+            }
+          }
+        },
+        "g4_no_new_taint": {
+          "allOf": [{ "$ref": "#/$defs/gate_result" }],
+          "properties": {
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "taint_paths_before": { "type": "integer" },
+                "taint_paths_after": { "type": "integer" },
+                "new_path_signatures": {
+                  "type": "array",
+                  "maxItems": 0,
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "metrics": {
+      "type": "object",
+      "description": "Resource accounting for the run that produced this bundle.",
+      "properties": {
+        "wall_clock_seconds": { "type": "number" },
+        "peak_rss_bytes": { "type": "integer" },
+        "local_tier_calls": { "type": "integer" },
+        "cloud_tier_calls": { "type": "integer" },
+        "offline_decision_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "public_key", "value", "signed_fields"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "const": "ed25519" },
+        "public_key": { "type": "string", "description": "base64-encoded" },
+        "value": { "type": "string", "description": "base64-encoded signature" },
+        "signed_fields": {
+          "type": "array",
+          "description": "Canonical order of the fields covered by the signature.",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "code_location": {
+      "type": "object",
+      "required": ["file", "line"],
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "function": { "type": "string" }
+      }
+    },
+    "http_request": {
+      "type": "object",
+      "required": ["method", "url"],
+      "properties": {
+        "method": { "type": "string" },
+        "url": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "body": { "type": ["string", "null"] }
+      }
+    },
+    "http_response": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "integer" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "body_hash": { "type": "string" },
+        "body_excerpt": { "type": "string" }
+      }
+    },
+    "gate_result": {
+      "type": "object",
+      "required": ["passed", "ran_at"],
+      "properties": {
+        "passed": { "type": "boolean", "const": true },
+        "ran_at": { "type": "string", "format": "date-time" },
+        "duration_seconds": { "type": "number" },
+        "evidence": { "type": "object" }
+      }
+    }
+  }
+}

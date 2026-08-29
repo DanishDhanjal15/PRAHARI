@@ -1,0 +1,48 @@
+# PRAHARI — dependencies
+#
+# Only python-pptx is needed today (it generates the submission deck).
+# Everything below the divider is the planned stack for the finale build and is
+# listed here so the dependency surface is visible up front. Unpinned entries are
+# pinned once the prototype is running.
+
+python-pptx==1.0.2
+
+# ---------------------------------------------------------------------------
+# PLANNED — finale build
+# ---------------------------------------------------------------------------
+
+# Orchestration and control plane
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+aiosqlite
+
+# Static analysis / code mapping
+semgrep
+tree-sitter
+tree-sitter-languages
+openapi-spec-validator
+
+# Fuzzing and dynamic analysis
+atheris
+hypothesis
+schemathesis
+coverage
+
+# Reasoning tier
+ollama                  # local tier: Qwen2.5-Coder 3B/7B
+anthropic               # cloud tier: escalation only
+faiss-cpu               # RAG over CWE/CVE + codebase
+sentence-transformers
+
+# Assurance
+pytest
+GitPython
+pynacl                  # ed25519 proof-bundle signing
+jsonschema              # proof-bundle validation
+
+# Target frameworks (for the seeded-vulnerability corpus)
+flask
+django
+sqlalchemy
